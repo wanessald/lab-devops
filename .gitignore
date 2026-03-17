@@ -1,0 +1,20 @@
+# Credenciais e segredos — NUNCA versionar
+terraform/terraform.tfvars
+terraform/*.tfvars
+
+# Artefatos gerados pelo Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+
+# Chaves SSH
+*.pem
+*.key
+.ssh/
+
+# Ansible
+ansible/inventory.ini
+
+# Sistema
+.DS_Store
