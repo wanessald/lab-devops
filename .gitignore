@@ -12,6 +12,7 @@ terraform/terraform.tfstate.backup
 *.pem
 *.key
 .ssh/
+lab-devops
 
 # Ansible
 ansible/inventory.ini
