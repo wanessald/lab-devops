@@ -4,7 +4,6 @@ terraform/*.tfvars
 
 # Artefatos gerados pelo Terraform
 terraform/.terraform/
-terraform/.terraform.lock.hcl
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
 
