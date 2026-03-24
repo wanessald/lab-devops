@@ -29,3 +29,13 @@ variable "ssh_public_key_path" {
   type        = string
   default     = "~/.ssh/lab-devops.pub"
 }
+
+variable "availability_domain" {
+  description = "Availability Domain da região OCI"
+  type        = string
+}
+
+variable "instance_image_ocid" {
+  description = "OCID da imagem Oracle Linux 8 para A1.Flex"
+  type        = string
+}
