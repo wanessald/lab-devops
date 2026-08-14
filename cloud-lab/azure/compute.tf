@@ -3,14 +3,17 @@ locals {
     "swarm-mgr" = {
       name       = "swarm-mgr"
       private_ip = "10.0.1.10"
+      vm_size    = "Standard_B2s"
     }
     "swarm-wkr-1" = {
       name       = "swarm-wkr-1"
       private_ip = "10.0.1.11"
+      vm_size    = "Standard_B1s"
     }
     "swarm-wkr-2" = {
       name       = "swarm-wkr-2"
       private_ip = "10.0.1.12"
+      vm_size    = "Standard_B1s"
     }
   }
 }
@@ -44,7 +47,7 @@ resource "azurerm_linux_virtual_machine" "swarm_nodes" {
   name                = each.value.name
   location            = azurerm_resource_group.lab_rg.location
   resource_group_name = azurerm_resource_group.lab_rg.name
-  size                = var.vm_size
+  size                = each.value.vm_size
   admin_username      = "labadmin"
 
   network_interface_ids = [
