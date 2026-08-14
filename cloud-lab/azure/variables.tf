@@ -4,19 +4,13 @@ variable "subscription_id" {
 }
 
 variable "location" {
-  description = "Região Azure"
+  description = "Região Azure onde os recursos serão criados"
   type        = string
   default     = "brazilsouth"
 }
 
-variable "ssh_public_key_path" {
-  description = "Caminho para a chave pública SSH"
+variable "prefix" {
+  description = "Prefixo usado no nome de todos os recursos"
   type        = string
-  default     = "~/.ssh/lab-devops.pub"
-}
-
-variable "vm_size" {
-  description = "Tamanho das VMs"
-  type        = string
-  default     = "Standard_B1ms"
+  default     = "cloudlab"
 }
