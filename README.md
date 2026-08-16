@@ -1,6 +1,6 @@
 # lab-devops
 
-A hands-on platform engineering laboratory built by a software engineer student exploring Infrastructure as Code, cloud provisioning, and container orchestration.
+A hands-on platform engineering laboratory built by a software engineering student exploring Infrastructure as Code, cloud provisioning, and container orchestration.
 
 This project started as a practical follow-up to a platform engineering acceleration course. It is not a polished production system — it is a learning record, with real decisions, real failures, and real infrastructure.
 
@@ -8,7 +8,7 @@ This project started as a practical follow-up to a platform engineering accelera
 
 ## Context
 
-I am a software engineer student, not a DevOps engineer. This lab was built to understand, in practice, what platform engineers actually do: provision infrastructure as code, manage cloud resources, connect machines over a network, and deploy applications in containers.
+I am a software engineering student, not a DevOps engineer. This lab was built to understand, in practice, what platform engineers actually do: provision infrastructure as code, manage cloud resources, connect machines over a network, and deploy applications in containers.
 
 Everything here was built incrementally, one resource at a time, with intentional stops to understand what each piece does before moving to the next.
 
@@ -29,12 +29,16 @@ lab-devops/
 ├── infrastructure-lab/
 │   └── multipass/          # Infrastructure Lab: local VMs + Docker Swarm (upcoming)
 │
-└── app/                    # Application (upcoming)
+└── app/                    # FastAPI application
+    ├── main.py
+    ├── Dockerfile
+    ├── requirements.txt
+    └── .dockerignore
 ```
 
 ---
 
-## Cloud Lab — Phase 1: Azure + Terraform + Docker
+## Cloud Lab — Phase 1: Azure + Terraform + VM
 
 ### Goal
 
@@ -42,18 +46,18 @@ Provision a Linux VM on Azure using Terraform, connect via SSH, install Docker, 
 
 ### What was built, resource by resource
 
-| Step | Resource                         | Purpose                                                   |
-| ---- | -------------------------------- | --------------------------------------------------------- |
-| 1    | `azurerm_resource_group`         | Logical container for all Azure resources                 |
-| 2    | `azurerm_virtual_network`        | Isolated private network (`10.0.0.0/16`)                  |
-| 3    | `azurerm_subnet`                 | Subdivision of the VNet (`10.0.1.0/24`)                   |
-| 4    | `azurerm_network_security_group` | Firewall — inbound rules for SSH (22) and HTTP (80)       |
-| 5    | `azurerm_public_ip`              | Static external IP address                                |
-| 6    | `azurerm_network_interface`      | Virtual NIC connecting the VM to the subnet and public IP |
-| 7    | `azurerm_linux_virtual_machine`  | Ubuntu 22.04 LTS, Standard_B2ats_v2, zone 1               |
-| 8    | SSH connection                   | Key-based authentication via `~/.ssh/lab-devops`          |
-| 9    | Docker Engine                    | Installed via official `get.docker.com` script            |
-| 10   | Container (`traefik/whoami`)     | API accessible publicly at the VM's public IP             |
+| Step | Resource | Purpose |
+|------|----------|---------|
+| 1 | `azurerm_resource_group` | Logical container for all Azure resources |
+| 2 | `azurerm_virtual_network` | Isolated private network (`10.0.0.0/16`) |
+| 3 | `azurerm_subnet` | Subdivision of the VNet (`10.0.1.0/24`) |
+| 4 | `azurerm_network_security_group` | Firewall — inbound rules for SSH (22) and HTTP (80) |
+| 5 | `azurerm_public_ip` | Static external IP address |
+| 6 | `azurerm_network_interface` | Virtual NIC connecting the VM to the subnet and public IP |
+| 7 | `azurerm_linux_virtual_machine` | Ubuntu 22.04 LTS, Standard_B2ats_v2, zone 1 |
+| 8 | SSH connection | Key-based authentication via `~/.ssh/lab-devops` |
+| 9 | Docker Engine | Installed via official `get.docker.com` script |
+| 10 | Container (`traefik/whoami`) | API accessible publicly at the VM's public IP |
 
 ### Architecture
 
@@ -74,7 +78,7 @@ NIC (virtual network interface)
     ▼
 VM — Ubuntu 22.04 (mexicocentral, zone 1)
   └── Docker
-        └── container: traefik/whoami → port 80
+        └── container → port 80
 ```
 
 ### Key decisions and why
@@ -86,24 +90,63 @@ The original plan used Oracle Cloud Free Tier (Always Free A1 instances). After 
 The university's Azure policy restricts deployments to five regions. `brazilsouth` had no available VM capacity for any SKU in the student subscription. `mexicocentral` zone 1 had `Standard_B2ats_v2` available with quota.
 
 **Why `Standard_B2ats_v2`**
-The only SKU available within the subscription's quota constraints in the allowed regions. 2 vCPUs, 1GB RAM — sufficient for Phase 1 validation but intentionally limited. A production workload would require a larger instance.
-
-**Why `traefik/whoami` instead of a custom application**
-Phase 1 objective was infrastructure validation, not application development. Using a ready-made image eliminated application variables — if something failed, the problem was in the infrastructure layer.
+The only SKU available within the subscription's quota constraints in the allowed regions. 2 vCPUs, 1GB RAM — sufficient for Phase 1 and 2 validation but intentionally limited.
 
 **Why resources were built incrementally**
 Each resource was planned, applied, and verified before the next one was added. This approach made it possible to identify exactly which layer caused each error — NSG, quota, region policy, or SKU availability.
 
+---
+
+## Cloud Lab — Phase 2: FastAPI Application
+
+### Goal
+
+Build a minimal REST API in Python with FastAPI, containerize it with Docker, and deploy it manually to the Azure VM provisioned in Phase 1 — validating the full path from code to public endpoint.
+
+### Application endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Returns `{"status": "ok"}` |
+| `GET` | `/api/tasks` | Returns list of tasks |
+| `POST` | `/api/tasks` | Creates a new task |
+| `GET` | `/docs` | Auto-generated interactive documentation (FastAPI) |
+
+### Stack
+
+- **Python 3.12** with **FastAPI** and **Pydantic** for data validation
+- **Uvicorn** as the ASGI server
+- **Docker** with `python:3.12-slim` base image (~212MB)
+- **In-memory storage** — data lives in a Python list; resets on container restart
+
+### Deploy flow (manual — Phase 4 will automate this with Jenkins)
+
+```
+Write code locally (WSL)
+        ↓
+Test with Docker locally
+        ↓
+Push to GitHub
+        ↓
+SSH into Azure VM
+        ↓
+git clone the repository
+        ↓
+docker build
+        ↓
+docker run -p 80:80
+        ↓
+API publicly accessible
+```
+
 ### What was learned
 
-- Terraform provider authentication (Azure CLI vs Service Principal)
-- Azure resource hierarchy: subscription → resource group → resources
-- Network topology: VNet → subnet → NIC → VM
-- NSG rules and the difference between listing a SKU and having quota for it
-- SSH key-based authentication and why the private key never leaves the local machine
-- Docker post-install configuration (`usermod -aG docker`)
-- The difference between `terraform plan` (simulation) and `terraform apply` (execution)
-- Why `terraform.tfstate` must never be committed to version control
+- FastAPI application structure and automatic documentation generation
+- Dockerfile best practices: layer caching (copy `requirements.txt` before source code), `python:slim` base image, `--host 0.0.0.0` requirement for containers
+- `.dockerignore` to exclude `__pycache__`, `.git`, and `.env` from the build context
+- The difference between `-p 8000:80` (local testing) and `-p 80:80` (production)
+- Why manual deploy is error-prone and what CI/CD solves
+- `--restart unless-stopped` to survive VM reboots
 
 ---
 
@@ -122,7 +165,6 @@ All project work is done inside WSL. The repository lives at `~/projects/lab-dev
 
 ## Upcoming
 
-- **Phase 2 — Application:** build a minimal REST API (`GET /health`, `GET /api/tasks`) and deploy it as a Docker container on the Azure VM
 - **Phase 3 — Infrastructure Lab:** provision 3 local VMs using Multipass, configure Docker Swarm, and study container networking, service discovery, rolling updates, and failover
 - **Phase 4 — Jenkins:** CI/CD pipeline triggered by GitHub pushes, building and deploying to the Swarm cluster
 - **Phase 5 — Comparison:** analyze the differences between cloud (Azure) and local (Multipass) infrastructure provisioned with the same toolchain
