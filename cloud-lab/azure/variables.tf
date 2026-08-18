@@ -14,3 +14,9 @@ variable "prefix" {
   type        = string
   default     = "cloudlab"
 }
+
+variable "ssh_source_address_prefix" {
+  description = "CIDR autorizado a acessar a porta SSH. Use seu IP público no formato x.x.x.x/32 ou * para qualquer origem."
+  type        = string
+  default     = "*"
+}
