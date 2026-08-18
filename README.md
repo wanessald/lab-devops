@@ -19,21 +19,24 @@ Everything here was built incrementally, one resource at a time, with intentiona
 ```
 lab-devops/
 │
+├── app/                        # FastAPI application
+│   ├── main.py
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── .dockerignore
+│
 ├── cloud-lab/
-│   └── azure/              # Cloud Lab: Terraform + Azure + Docker
+│   └── azure/                  # Cloud Lab: Terraform + Azure + Docker
 │       ├── main.tf
 │       ├── provider.tf
 │       ├── variables.tf
-│       └── terraform.tfvars (not versioned — credentials)
+│       ├── terraform.tfvars.example
+│       └── terraform.tfvars    (not versioned — credentials)
 │
-├── infrastructure-lab/
-│   └── multipass/          # Infrastructure Lab: local VMs + Docker Swarm (upcoming)
-│
-└── app/                    # FastAPI application
-    ├── main.py
-    ├── Dockerfile
-    ├── requirements.txt
-    └── .dockerignore
+└── infrastructure-lab/
+    ├── ansible/playbooks/      # Ansible playbooks (upcoming)
+    ├── swarm/                  # Docker Swarm configuration (upcoming)
+    └── multipass/              # Local VM provisioning (upcoming)
 ```
 
 ---
@@ -57,7 +60,7 @@ Provision a Linux VM on Azure using Terraform, connect via SSH, install Docker, 
 | 7 | `azurerm_linux_virtual_machine` | Ubuntu 22.04 LTS, Standard_B2ats_v2, zone 1 |
 | 8 | SSH connection | Key-based authentication via `~/.ssh/lab-devops` |
 | 9 | Docker Engine | Installed via official `get.docker.com` script |
-| 10 | Container (`traefik/whoami`) | API accessible publicly at the VM's public IP |
+| 10 | Container | Application accessible publicly at the VM's public IP |
 
 ### Architecture
 
@@ -69,7 +72,7 @@ Public IP (static)
     │
     ▼
 NSG (firewall)
-  ├── port 22 → SSH allowed
+  ├── port 22 → SSH (restricted by ssh_source_address_prefix)
   └── port 80 → HTTP allowed
     │
     ▼
@@ -78,7 +81,7 @@ NIC (virtual network interface)
     ▼
 VM — Ubuntu 22.04 (mexicocentral, zone 1)
   └── Docker
-        └── container → port 80
+        └── container (appuser, non-root) → port 8000
 ```
 
 ### Key decisions and why
@@ -95,6 +98,11 @@ The only SKU available within the subscription's quota constraints in the allowe
 **Why resources were built incrementally**
 Each resource was planned, applied, and verified before the next one was added. This approach made it possible to identify exactly which layer caused each error — NSG, quota, region policy, or SKU availability.
 
+### Known limitations
+
+- Terraform state is local only. A remote backend (Azure Storage Account) will be configured when Jenkins is introduced in Phase 4.
+- `ssh_source_address_prefix` defaults to `"*"` (any origin) due to dynamic residential IP. Set to `your.ip.address/32` in `terraform.tfvars` for stricter security.
+
 ---
 
 ## Cloud Lab — Phase 2: FastAPI Application
@@ -109,7 +117,7 @@ Build a minimal REST API in Python with FastAPI, containerize it with Docker, an
 |--------|----------|-------------|
 | `GET` | `/health` | Returns `{"status": "ok"}` |
 | `GET` | `/api/tasks` | Returns list of tasks |
-| `POST` | `/api/tasks` | Creates a new task |
+| `POST` | `/api/tasks` | Creates a new task (title required, max 120 chars) |
 | `GET` | `/docs` | Auto-generated interactive documentation (FastAPI) |
 
 ### Stack
@@ -117,7 +125,10 @@ Build a minimal REST API in Python with FastAPI, containerize it with Docker, an
 - **Python 3.12** with **FastAPI** and **Pydantic** for data validation
 - **Uvicorn** as the ASGI server
 - **Docker** with `python:3.12-slim` base image (~212MB)
+- **Non-root container** — application runs as `appuser` (UID 10001)
 - **In-memory storage** — data lives in a Python list; resets on container restart
+
+> Note: in-memory storage means each Docker Swarm replica in Phase 3 will have its own independent task list. This is an intentional design choice for the learning experiment — it demonstrates why external databases exist in distributed systems.
 
 ### Deploy flow (manual — Phase 4 will automate this with Jenkins)
 
@@ -134,23 +145,25 @@ git clone the repository
         ↓
 docker build
         ↓
-docker run -p 80:80
+docker run -p 80:8000
         ↓
 API publicly accessible
 ```
 
 ### What was learned
 
-- FastAPI application structure and automatic documentation generation
-- Dockerfile best practices: layer caching (copy `requirements.txt` before source code), `python:slim` base image, `--host 0.0.0.0` requirement for containers
+- FastAPI application structure, Pydantic models, and automatic documentation generation
+- Dockerfile best practices: layer caching, `python:slim` base image, non-root user, `--host 0.0.0.0`
 - `.dockerignore` to exclude `__pycache__`, `.git`, and `.env` from the build context
-- The difference between `-p 8000:80` (local testing) and `-p 80:80` (production)
+- The difference between `-p 8000:8000` (local testing) and `-p 80:8000` (production)
 - Why manual deploy is error-prone and what CI/CD solves
 - `--restart unless-stopped` to survive VM reboots
 
 ---
 
-## Prerequisites (local environment)
+## Getting Started
+
+### Prerequisites
 
 - Windows 11 with WSL 2 (Ubuntu 24.04)
 - Terraform v1.7+ (installed inside WSL)
@@ -159,14 +172,48 @@ API publicly accessible
 - Azure CLI (`az`) installed inside WSL
 - Git 2.43+
 
-All project work is done inside WSL. The repository lives at `~/projects/lab-devops` inside the Linux filesystem — not under `/mnt/c/` — to ensure correct file permissions for SSH keys and Ansible.
+> All project work is done inside WSL. The repository lives at `~/projects/lab-devops` inside the Linux filesystem — not under `/mnt/c/` — to ensure correct file permissions for SSH keys and Ansible.
+
+### Configure credentials
+
+```bash
+cp cloud-lab/azure/terraform.tfvars.example cloud-lab/azure/terraform.tfvars
+# Edit terraform.tfvars with your Azure subscription ID and preferences
+```
+
+### Provision infrastructure
+
+```bash
+cd cloud-lab/azure
+az login
+terraform init
+terraform plan
+terraform apply
+```
+
+### Deploy application
+
+```bash
+ssh -i ~/.ssh/lab-devops labadmin@<vm_public_ip>
+git clone https://github.com/wanessald/lab-devops.git
+cd lab-devops/app
+docker build -t lab-devops-api .
+docker run -d --name lab-devops-api --restart unless-stopped -p 80:8000 lab-devops-api
+```
+
+### Destroy infrastructure
+
+```bash
+cd cloud-lab/azure
+terraform destroy
+```
 
 ---
 
 ## Upcoming
 
-- **Phase 3 — Infrastructure Lab:** provision 3 local VMs using Multipass, configure Docker Swarm, and study container networking, service discovery, rolling updates, and failover
-- **Phase 4 — Jenkins:** CI/CD pipeline triggered by GitHub pushes, building and deploying to the Swarm cluster
+- **Phase 3 — Infrastructure Lab:** provision 3 local VMs using Multipass, configure Docker Swarm with Ansible, and study container networking, service discovery, rolling updates, and failover
+- **Phase 4 — CI/CD:** GitHub Actions for validation + Jenkins for automated build and deploy to the Swarm cluster
 - **Phase 5 — Comparison:** analyze the differences between cloud (Azure) and local (Multipass) infrastructure provisioned with the same toolchain
 
 ---
