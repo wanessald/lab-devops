@@ -20,3 +20,9 @@ variable "ssh_source_address_prefix" {
   type        = string
   default     = "*"
 }
+
+variable "ssh_public_key" {
+  description = "Conteúdo da chave pública SSH para as VMs. Use: $(cat ~/.ssh/lab-devops.pub)"
+  type        = string
+  default     = ""
+}
