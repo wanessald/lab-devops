@@ -19,3 +19,5 @@ ansible/inventory.ini
 # Sistema
 .DS_Store
 infrastructure-lab/ansible/inventory.ini
+__pycache__/
+*.pyc
