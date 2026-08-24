@@ -11,8 +11,8 @@ pipeline {
         stage('Test') {
             steps {
                 dir('app') {
-                    sh 'pip install -r requirements.txt --break-system-packages'
-                    sh 'pytest test_main.py -v'
+                    sh 'pip3 install -r requirements.txt --break-system-packages'
+                    sh 'python3 -m pytest test_main.py -v'
                 }
             }
         }
