@@ -275,4 +275,3 @@ vagrant up        # boot from halt
 ## Notes
 
 This repository documents a learning journey, not a finished product. Errors, dead ends, and constraint workarounds are part of the record — they are where the actual learning happened.
-# webhook test
