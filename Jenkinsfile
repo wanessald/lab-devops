@@ -36,16 +36,19 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh """
-                    docker service update \
-                      --image ${REGISTRY}/${IMAGE}:${TAG} \
-                      --update-parallelism 1 \
-                      --update-delay 5s \
-                      lab-api || \
-                    docker service create \
-                      --name lab-api \
-                      --replicas 3 \
-                      --publish published=80,target=8000 \
-                      ${REGISTRY}/${IMAGE}:${TAG}
+                    if docker service inspect lab-api > /dev/null 2>&1; then
+                        docker service update \
+                          --image ${REGISTRY}/${IMAGE}:${TAG} \
+                          --update-parallelism 1 \
+                          --update-delay 5s \
+                          lab-api
+                    else
+                        docker service create \
+                          --name lab-api \
+                          --replicas 3 \
+                          --publish published=80,target=8000 \
+                          ${REGISTRY}/${IMAGE}:${TAG}
+                    fi
                 """
             }
         }
