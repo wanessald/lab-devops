@@ -44,10 +44,6 @@ pipeline {
                           --update-failure-action rollback \
                           --rollback-parallelism 1 \
                           --rollback-delay 5s \
-                          --health-cmd "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")'" \
-                          --health-interval 30s \
-                          --health-timeout 5s \
-                          --health-retries 3 \
                           lab-api
                     else
                         docker service create \
@@ -55,10 +51,6 @@ pipeline {
                           --replicas 3 \
                           --publish published=80,target=8000 \
                           --update-failure-action rollback \
-                          --health-cmd "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")'" \
-                          --health-interval 30s \
-                          --health-timeout 5s \
-                          --health-retries 3 \
                           ${REGISTRY}/${IMAGE}:${TAG}
                     fi
                 """
