@@ -26,3 +26,15 @@ variable "ssh_public_key" {
   type        = string
   default     = ""
 }
+
+variable "vm_size" {
+  description = "Tamanho da VM Azure (SKU)"
+  type        = string
+  default     = "Standard_B2ats_v2"
+}
+
+variable "availability_zone" {
+  description = "Zona de disponibilidade Azure (1, 2 ou 3)"
+  type        = string
+  default     = "1"
+}

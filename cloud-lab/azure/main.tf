@@ -57,7 +57,7 @@ resource "azurerm_public_ip" "pip" {
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Static"
-  zones               = ["1"]
+  zones               = [var.availability_zone]
   sku                 = "Standard"
 }
 
@@ -78,8 +78,8 @@ resource "azurerm_linux_virtual_machine" "vm" {
   name                = "${var.prefix}-vm"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  size                = "Standard_B2ats_v2"
-  zone                = "1"
+  size                = var.vm_size
+  zone                = var.availability_zone
   admin_username      = "labadmin"
 
   network_interface_ids = [
