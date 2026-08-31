@@ -2,9 +2,10 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "192.168.56.10:5000"
-        IMAGE    = "lab-devops-api"
-        TAG      = "${env.GIT_COMMIT?.take(7) ?: 'latest'}"
+        REGISTRY  = "192.168.56.10:5000"
+        IMAGE     = "lab-devops-api"
+        TAG       = "${env.GIT_COMMIT?.take(7) ?: 'latest'}"
+        STACK_YML = "infrastructure-lab/swarm/stack.yml"
     }
 
     stages {
@@ -36,23 +37,10 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh """
-                    if docker service inspect lab-api > /dev/null 2>&1; then
-                        docker service update \
-                          --image ${REGISTRY}/${IMAGE}:${TAG} \
-                          --update-parallelism 1 \
-                          --update-delay 5s \
-                          --update-failure-action rollback \
-                          --rollback-parallelism 1 \
-                          --rollback-delay 5s \
-                          lab-api
-                    else
-                        docker service create \
-                          --name lab-api \
-                          --replicas 3 \
-                          --publish published=80,target=8000 \
-                          --update-failure-action rollback \
-                          ${REGISTRY}/${IMAGE}:${TAG}
-                    fi
+                    docker stack deploy \
+                      --compose-file ${STACK_YML} \
+                      --with-registry-auth \
+                      lab
                 """
             }
         }

@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  lab-api:
+    image: 192.168.56.10:5000/lab-devops-api:latest
+    ports:
+      - "80:8000"
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 5s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
